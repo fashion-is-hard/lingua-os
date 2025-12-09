@@ -20,7 +20,7 @@
       overflow: hidden;
     }
     .kakao-window {
-      position: relative; /* 팝업 기준 */
+      position: relative;
       width: 520px;
       height: min(760px, 94vh);
       background: #dfe3eb;
@@ -71,7 +71,6 @@
       color: #666;
       margin-left: 4px;
     }
-
     .kakao-header-right {
       display: flex;
       align-items: center;
@@ -90,7 +89,6 @@
       flex-direction: column;
       gap: 10px;
     }
-
     .msg-row {
       display: flex;
       align-items: flex-end;
@@ -103,7 +101,6 @@
     .msg-row.right {
       justify-content: flex-end;
     }
-
     .avatar {
       width: 40px;
       height: 40px;
@@ -117,7 +114,6 @@
       object-fit: cover;
       display: block;
     }
-
     .msg-content {
       max-width: 75%;
       display: flex;
@@ -145,14 +141,12 @@
       background: #ffe96b;
       border: 1px solid #e0c542;
     }
-
     .time {
       font-size: 10px;
       color: #555;
       margin: 0 4px;
       white-space: nowrap;
     }
-
     .msg-row.left .time { order: 3; }
     .msg-row.right .time { order: -1; }
 
@@ -193,7 +187,7 @@
     /* === 문장 교정 팝업 === */
     .suggestion-popup {
       position: absolute;
-      bottom: 120px;           /* 입력창 위 근처 */
+      bottom: 120px;
       left: 50%;
       transform: translateX(-50%);
       width: 360px;
@@ -236,6 +230,16 @@
     .suggestion-body {
       padding: 10px 12px;
       background: #f9fafb;
+    }
+    .suggestion-info {
+      margin-bottom: 6px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: #fef3c7;
+      border: 1px solid #facc15;
+      font-size: 11px;
+      color: #92400e;
+      display: none; /* 설명 없으면 숨김 */
     }
     .suggestion-list {
       display: flex;
@@ -369,6 +373,7 @@
         <div id="suggestionClose" class="suggestion-close">✕</div>
       </div>
       <div class="suggestion-body">
+        <div id="suggestionInfo" class="suggestion-info"></div>
         <div id="suggestionList" class="suggestion-list"></div>
         <div class="suggestion-footer">
           <span>클릭하면 메시지에 적용됩니다.</span>
@@ -390,7 +395,6 @@
   </div>
 
   <script>
-    // ====== API 키는 모달에서 입력받음 ======
     let apiKey = "";
 
     const API_URL = "https://api.openai.com/v1/chat/completions";
@@ -402,6 +406,7 @@
 
     const suggestionPopup = document.getElementById("suggestionPopup");
     const suggestionList = document.getElementById("suggestionList");
+    const suggestionInfo = document.getElementById("suggestionInfo");
     const suggestionClose = document.getElementById("suggestionClose");
 
     const apikeyOverlay = document.getElementById("apikeyOverlay");
@@ -570,16 +575,23 @@
 
 목표:
 - 사용자가 쓴 문장을 더 공손하고 명확한 비즈니스 톤으로 바꿔 준다.
-- 사용자가 단어 뜻을 오해했거나 날짜/용어를 잘못 이해한 경우,
-  먼저 그 뜻을 짧게 짚어주는 문장도 함께 제안할 수 있다.
-  (예: "금일은 오늘이라는 뜻입니다.")
+- 한국 IT 회사 팀장 "정경태"가 봐도 지적할 부분이 없도록,
+  예의·명확성·책임감·모호성 제거를 기준으로 문장을 다듬는다.
+- 사용자가 단어를 잘못 이해했거나 날짜/용어를 틀리게 쓴 경우,
+  그 오해를 짧게 짚어주는 정보성 경고 문장을 함께 제공할 수 있다.
+  (예: "금일은 오늘이라는 뜻입니다." 같은 한 줄 설명)
+
+출력 형식 (반드시 이 JSON 형식만 사용):
+{
+  "explanation": "단어/표현에 대한 짧은 경고나 해설. 없으면 빈 문자열 \"\".",
+  "suggestions": ["정경태 팀장이 봐도 무난한 비즈니스 톤 문장1",
+                  "정경태 팀장이 봐도 무난한 비즈니스 톤 문장2"]
+}
 
 규칙:
-1) 출력 형식은 반드시 JSON 배열만 사용한다.
-   예) ["문장1", "문장2", "문장3"]
-2) 각 요소는 실제 메신저에 그대로 보낼 수 있는 한 문장 또는 두 문장 수준이어야 한다.
-3) 불필요한 설명, 번호 매기기, 코드블록, 해설 텍스트는 절대 넣지 말 것.
-4) 기본 톤은 공손하고 명확한 비즈니스 톤으로 유지한다.
+1) explanation은 정보 제공용 문장만 넣고, suggestions에는 넣지 않는다.
+2) suggestions의 각 요소는 실제 메신저에 그대로 보낼 수 있는 완성 문장이어야 한다.
+3) JSON 이외의 텍스트(설명, 코드블록, 번호 매기기 등)는 절대 추가하지 않는다.
                 `.trim()
               },
               {
@@ -594,15 +606,20 @@
         const data = await res.json();
         let content = data.choices?.[0]?.message?.content?.trim() || "";
 
-        let arr;
+        let explanation = "";
+        let arr = [];
+
         try {
-          arr = JSON.parse(content);
+          const parsed = JSON.parse(content);
+          explanation = parsed.explanation || "";
+          arr = parsed.suggestions || [];
         } catch (e) {
+          // 포맷이 깨진 경우를 대비한 fallback
+          explanation = "";
           arr = [content];
         }
-        if (!Array.isArray(arr)) arr = [String(arr)];
 
-        showSuggestions(arr);
+        showSuggestions(explanation, arr);
       } catch (e) {
         console.error(e);
       } finally {
@@ -610,7 +627,17 @@
       }
     }
 
-    function showSuggestions(list) {
+    function showSuggestions(explanation, list) {
+      // 정보성 경고
+      if (explanation && explanation.trim()) {
+        suggestionInfo.textContent = explanation.trim();
+        suggestionInfo.style.display = "block";
+      } else {
+        suggestionInfo.textContent = "";
+        suggestionInfo.style.display = "none";
+      }
+
+      // 후보 문장
       suggestionList.innerHTML = "";
       list.forEach((s) => {
         if (!s) return;
@@ -625,7 +652,8 @@
         });
         suggestionList.appendChild(item);
       });
-      if (list.length > 0) {
+
+      if (list.length > 0 || (explanation && explanation.trim())) {
         suggestionPopup.style.display = "block";
       }
     }
@@ -634,7 +662,7 @@
       suggestionPopup.style.display = "none";
     }
 
-    // 입력 시 1초 후 자동 교정 요청 (디바운스)
+    // 입력 시 1초 후 자동 교정 (디바운스)
     messageInput.addEventListener("input", () => {
       const text = messageInput.value.trim();
 
@@ -649,7 +677,7 @@
 
       suggestionTimer = setTimeout(() => {
         requestSuggestions(text);
-      }, 1000); // 1초
+      }, 1000);
     });
 
     suggestionClose.addEventListener("click", hideSuggestions);
@@ -658,8 +686,8 @@
       const text = messageInput.value.trim();
       if (!text) return;
       messageInput.value = "";
-      hideSuggestions(); // 전송 시 팝업 닫기
-      sendToBoss(text);  // 이때만 상사에게 실제 전송
+      hideSuggestions();      // 전송하면 교정 팝업 무조건 닫기
+      sendToBoss(text);
     });
 
     messageInput.addEventListener("keydown", (e) => {
@@ -669,7 +697,7 @@
       }
     });
 
-    // API 키 모달 동작
+    // API 키 모달
     apikeyButton.addEventListener("click", () => {
       const value = apikeyInput.value.trim();
       if (!value) {
