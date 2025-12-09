@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>정경태 팀장님</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #222;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .kakao-window {
+      position: relative; /* 팝업 기준 */
+      width: 520px;
+      height: min(760px, 94vh);
+      background: #dfe3eb;
+      border-radius: 10px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #aaa;
+    }
+
+    /* 상단 제목 영역 */
+    .kakao-header {
+      height: 50px;
+      background: linear-gradient(to bottom, #f4f4f4, #dfdfdf);
+      border-bottom: 1px solid #c2c2c2;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      color: #222;
+    }
+    .kakao-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+    .profile-circle {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: #bbb;
+      flex-shrink: 0;
+    }
+    .profile-circle img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .chat-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .member-count {
+      font-size: 12px;
+      color: #666;
+      margin-left: 4px;
+    }
+
+    .kakao-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #666;
+    }
+
+    /* 채팅 영역 */
+    .chat-body {
+      flex: 1;
+      background: #b8c3d1;
+      padding: 12px 12px 6px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .msg-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      max-width: 100%;
+    }
+    .msg-row.left {
+      justify-content: flex-start;
+    }
+    .msg-row.right {
+      justify-content: flex-end;
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .msg-content {
+      max-width: 75%;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .nickname {
+      font-size: 11px;
+      color: #333;
+      margin-left: 4px;
+    }
+    .bubble {
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .bubble.boss {
+      background: #f0f5fb;
+      border: 1px solid #a9b9d5;
+    }
+    .bubble.me {
+      background: #ffe96b;
+      border: 1px solid #e0c542;
+    }
+
+    .time {
+      font-size: 10px;
+      color: #555;
+      margin: 0 4px;
+      white-space: nowrap;
+    }
+
+    .msg-row.left .time { order: 3; }
+    .msg-row.right .time { order: -1; }
+
+    /* 하단 입력 영역 */
+    .input-bar {
+      background: #f0f1f4;
+      border-top: 1px solid #c2c5d0;
+      padding: 6px 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .input-main {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .input-main textarea {
+      flex: 1;
+      resize: none;
+      min-height: 50px;
+      max-height: 140px;
+      border-radius: 4px;
+      border: 1px solid #c2c5d0;
+      font-size: 13px;
+      padding: 6px 8px;
+    }
+    .input-main button {
+      width: 72px;
+      height: 44px;
+      border-radius: 4px;
+      border: 1px solid #c2c5d0;
+      background: #f8f9fb;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* === 문장 교정 팝업 === */
+    .suggestion-popup {
+      position: absolute;
+      bottom: 120px;           /* 입력창 위 근처 */
+      left: 50%;
+      transform: translateX(-50%);
+      width: 360px;
+      max-width: calc(100% - 40px);
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(15,23,42,0.35);
+      border: 1px solid #e5e7eb;
+      display: none;
+      z-index: 20;
+      overflow: hidden;
+    }
+    .suggestion-header {
+      background: linear-gradient(90deg, #7c3aed, #ec4899);
+      color: #ffffff;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+    .suggestion-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .suggestion-title {
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .suggestion-sub {
+      font-size: 10px;
+      opacity: 0.9;
+    }
+    .suggestion-close {
+      cursor: pointer;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .suggestion-body {
+      padding: 10px 12px;
+      background: #f9fafb;
+    }
+    .suggestion-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .suggestion-item {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      font-size: 13px;
+      line-height: 1.5;
+      cursor: pointer;
+    }
+    .suggestion-item:hover {
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 1px rgba(124,58,237,0.2);
+    }
+    .suggestion-footer {
+      margin-top: 8px;
+      font-size: 10px;
+      color: #6b7280;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* === API 키 입력 모달 === */
+    .apikey-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    .apikey-modal {
+      width: 360px;
+      max-width: calc(100% - 40px);
+      border-radius: 16px;
+      background: #ffffff;
+      box-shadow: 0 18px 40px rgba(15,23,42,0.45);
+      padding: 18px 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .apikey-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .apikey-desc {
+      font-size: 12px;
+      color: #4b5563;
+    }
+    .apikey-input {
+      margin-top: 6px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-size: 13px;
+      width: 100%;
+    }
+    .apikey-footer {
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #6b7280;
+    }
+    .apikey-button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(90deg,#6366f1,#ec4899);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- API 키 입력 모달 -->
+  <div id="apikeyOverlay" class="apikey-overlay">
+    <div class="apikey-modal">
+      <div class="apikey-title">OpenAI API 키 입력</div>
+      <div class="apikey-desc">
+        이 프로토타입은 OpenAI API를 사용합니다.<br />
+        <b>sk-</b>로 시작하는 개인 키를 입력하셔야 테스트가 가능합니다.<br />
+        (키는 브라우저에만 저장되며 서버로 전송되지 않습니다.)
+      </div>
+      <input
+        id="apikeyInput"
+        class="apikey-input"
+        type="password"
+        placeholder="sk-로 시작하는 API 키"
+      />
+      <div class="apikey-footer">
+        <span>팀 내부 테스트용으로만 사용해주세요.</span>
+        <button id="apikeyButton" class="apikey-button">시작하기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="kakao-window">
+
+    <!-- HEADER -->
+    <div class="kakao-header">
+      <div class="kakao-header-left">
+        <div class="profile-circle">
+          <img src="leader_profile.png" alt="리더 프로필" />
+        </div>
+        <div class="chat-title">정경태 팀장님</div>
+        <div class="member-count">2</div>
+      </div>
+      <div class="kakao-header-right"></div>
+    </div>
+
+    <!-- 문장 교정 팝업 -->
+    <div id="suggestionPopup" class="suggestion-popup">
+      <div class="suggestion-header">
+        <div class="suggestion-header-left">
+          <div class="suggestion-title">LinguaOS</div>
+          <div class="suggestion-sub">TONE UP: 공손하게</div>
+        </div>
+        <div id="suggestionClose" class="suggestion-close">✕</div>
+      </div>
+      <div class="suggestion-body">
+        <div id="suggestionList" class="suggestion-list"></div>
+        <div class="suggestion-footer">
+          <span>클릭하면 메시지에 적용됩니다.</span>
+          <span>자동 교정 · 미전송</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div id="chatBody" class="chat-body"></div>
+
+    <!-- INPUT -->
+    <div class="input-bar">
+      <div class="input-main">
+        <textarea id="messageInput" placeholder="메시지 입력"></textarea>
+        <button id="sendBtn">전송</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====== API 키는 모달에서 입력받음 ======
+    let apiKey = "";
+
+    const API_URL = "https://api.openai.com/v1/chat/completions";
+    const MODEL = "gpt-4.1-mini";
+
+    const chatBody = document.getElementById("chatBody");
+    const messageInput = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    const suggestionPopup = document.getElementById("suggestionPopup");
+    const suggestionList = document.getElementById("suggestionList");
+    const suggestionClose = document.getElementById("suggestionClose");
+
+    const apikeyOverlay = document.getElementById("apikeyOverlay");
+    const apikeyInput = document.getElementById("apikeyInput");
+    const apikeyButton = document.getElementById("apikeyButton");
+
+    let messages = [
+      {
+        role: "system",
+        content: `
+당신은 한국 IT 회사의 까다롭고 성격이 급한 상사 "정경태"입니다.
+
+- 성격:
+  * 맞춤법, 띄어쓰기, 문장 구조, 존댓말 비즈니스 매너에 아주 민감하다.
+  * 말투는 사용자에게 반말을 쓰며 짜증 섞여 있고 화를 잘 낸다.
+- 목표:
+  * 사용자의 문장에서 문제점만 지적하고 불만을 표현한다.
+  * 절대 해결책이나 대안을 제시하지 않는다.
+  * 만약 사용자의 문장이 만족스러우면 화를 내지 않고 업무 이야기를 이어간다.
+- 금지: 욕설, 모욕, 비하.
+- 스타일: 짧고 직설적이며 까칠하다.
+        `.trim()
+      }
+    ];
+
+    let suggestionTimer = null;
+    let suggestionLoading = false;
+
+    function ensureApiKey() {
+      if (!apiKey) {
+        alert("먼저 OpenAI API 키를 입력해 주세요.");
+        apikeyOverlay.style.display = "flex";
+        apikeyInput.focus();
+        return false;
+      }
+      return true;
+    }
+
+    function nowTime() {
+      const d = new Date();
+      let h = d.getHours();
+      const m = d.getMinutes().toString().padStart(2, "0");
+      const ampm = h >= 12 ? "오후" : "오전";
+      if (h === 0) h = 12;
+      else if (h > 12) h -= 12;
+      return `${ampm} ${h}:${m}`;
+    }
+
+    function appendMessage(role, text) {
+      const row = document.createElement("div");
+      row.className = "msg-row " + (role === "user" ? "right" : "left");
+
+      if (role !== "user") {
+        const avatar = document.createElement("div");
+        avatar.className = "avatar";
+        const img = document.createElement("img");
+        img.src = "leader_profile.png";
+        avatar.appendChild(img);
+        row.appendChild(avatar);
+      }
+
+      const contentWrap = document.createElement("div");
+      contentWrap.className = "msg-content";
+
+      if (role !== "user") {
+        const nick = document.createElement("div");
+        nick.className = "nickname";
+        nick.textContent = "정경태 팀장님";
+        contentWrap.appendChild(nick);
+      }
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble " + (role === "user" ? "me" : "boss");
+      bubble.textContent = text;
+      contentWrap.appendChild(bubble);
+
+      row.appendChild(contentWrap);
+
+      const time = document.createElement("div");
+      time.className = "time";
+      time.textContent = nowTime();
+      row.appendChild(time);
+
+      chatBody.appendChild(row);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    // === 상사에게 실제 전송 ===
+    async function sendToBoss(text) {
+      if (!ensureApiKey()) return;
+
+      appendMessage("user", text);
+      messages.push({ role: "user", content: text });
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + apiKey
+          },
+          body: JSON.stringify({
+            model: MODEL,
+            messages,
+            temperature: 0.7
+          })
+        });
+
+        const data = await res.json();
+        const reply = data.choices?.[0]?.message?.content?.trim() || "응답 없음";
+        appendMessage("boss", reply);
+        messages.push({ role: "assistant", content: reply });
+      } catch (e) {
+        console.error(e);
+        appendMessage("boss", "API 오류 발생.");
+      }
+    }
+
+    // === 문장 교정 제안 ===
+    async function requestSuggestions(text) {
+      if (!text || suggestionLoading) return;
+      if (!ensureApiKey()) return;
+      suggestionLoading = true;
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + apiKey
+          },
+          body: JSON.stringify({
+            model: MODEL,
+            messages: [
+              {
+                role: "system",
+                content: `
+당신은 한국어 비즈니스 메신저 문장을 다듬는 보조 도구입니다.
+사용자가 쓴 문장을 더 공손하고 명확한 비즈니스 톤으로 바꿔 줍니다.
+출력 형식은 반드시 다음 예시처럼 JSON 배열 형태로만 출력하세요.
+
+["제안문장1", "제안문장2", "제안문장3"]
+
+기타 설명, 코드블록, 번호 매기기 등은 절대 넣지 마세요.
+                `.trim()
+              },
+              {
+                role: "user",
+                content: text
+              }
+            ],
+            temperature: 0.4
+          })
+        });
+
+        const data = await res.json();
+        let content = data.choices?.[0]?.message?.content?.trim() || "";
+
+        let arr;
+        try {
+          arr = JSON.parse(content);
+        } catch (e) {
+          arr = [content];
+        }
+        if (!Array.isArray(arr)) arr = [String(arr)];
+
+        showSuggestions(arr);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        suggestionLoading = false;
+      }
+    }
+
+    function showSuggestions(list) {
+      suggestionList.innerHTML = "";
+      list.forEach((s) => {
+        if (!s) return;
+        const item = document.createElement("div");
+        item.className = "suggestion-item";
+        item.textContent = s;
+        item.addEventListener("click", () => {
+          messageInput.value = s;
+          hideSuggestions();
+          messageInput.focus();
+          messageInput.setSelectionRange(s.length, s.length);
+        });
+        suggestionList.appendChild(item);
+      });
+      if (list.length > 0) {
+        suggestionPopup.style.display = "block";
+      }
+    }
+
+    function hideSuggestions() {
+      suggestionPopup.style.display = "none";
+    }
+
+    // 입력 시 1초 후 자동 교정 요청 (디바운스)
+    messageInput.addEventListener("input", () => {
+      const text = messageInput.value.trim();
+
+      if (suggestionTimer) {
+        clearTimeout(suggestionTimer);
+      }
+
+      if (!text) {
+        hideSuggestions();
+        return;
+      }
+
+      suggestionTimer = setTimeout(() => {
+        requestSuggestions(text);
+      }, 1000); // 1초
+    });
+
+    suggestionClose.addEventListener("click", hideSuggestions);
+
+    sendBtn.addEventListener("click", () => {
+      const text = messageInput.value.trim();
+      if (!text) return;
+      messageInput.value = "";
+      hideSuggestions(); // 전송 시 팝업 닫기
+      sendToBoss(text);  // 이때만 상사에게 실제 전송
+    });
+
+    messageInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
+      }
+    });
+
+    // API 키 모달 동작
+    apikeyButton.addEventListener("click", () => {
+      const value = apikeyInput.value.trim();
+      if (!value) {
+        alert("API 키를 입력해 주세요.");
+        return;
+      }
+      apiKey = value;
+      apikeyOverlay.style.display = "none";
+    });
+
+    apikeyInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        apikeyButton.click();
+      }
+    });
+
+    // 첫 메시지
+    appendMessage("boss", "뭐 할 말 있나?");
+    // 페이지 로드 시 키 입력창에 포커스
+    apikeyInput.focus();
+  </script>
+</body>
+</html>
