@@ -32,7 +32,6 @@
       border: 1px solid #aaa;
     }
 
-    /* 상단 제목 영역 */
     .kakao-header {
       height: 50px;
       background: linear-gradient(to bottom, #f4f4f4, #dfdfdf);
@@ -79,7 +78,6 @@
       color: #666;
     }
 
-    /* 채팅 영역 */
     .chat-body {
       flex: 1;
       background: #b8c3d1;
@@ -150,7 +148,6 @@
     .msg-row.left .time { order: 3; }
     .msg-row.right .time { order: -1; }
 
-    /* 하단 입력 영역 */
     .input-bar {
       background: #f0f1f4;
       border-top: 1px solid #c2c5d0;
@@ -184,7 +181,6 @@
       cursor: pointer;
     }
 
-    /* === 문장 교정 팝업 === */
     .suggestion-popup {
       position: absolute;
       bottom: 120px;
@@ -239,7 +235,7 @@
       border: 1px solid #facc15;
       font-size: 11px;
       color: #92400e;
-      display: none; /* 설명 없으면 숨김 */
+      display: none;
     }
     .suggestion-list {
       display: flex;
@@ -268,7 +264,6 @@
       align-items: center;
     }
 
-    /* === API 키 입력 모달 === */
     .apikey-overlay {
       position: fixed;
       inset: 0;
@@ -351,7 +346,6 @@
 
   <div class="kakao-window">
 
-    <!-- HEADER -->
     <div class="kakao-header">
       <div class="kakao-header-left">
         <div class="profile-circle">
@@ -363,7 +357,7 @@
       <div class="kakao-header-right"></div>
     </div>
 
-    <!-- 문장 교정 팝업 -->
+    <!-- 교정 팝업 -->
     <div id="suggestionPopup" class="suggestion-popup">
       <div class="suggestion-header">
         <div class="suggestion-header-left">
@@ -382,10 +376,8 @@
       </div>
     </div>
 
-    <!-- CHAT -->
     <div id="chatBody" class="chat-body"></div>
 
-    <!-- INPUT -->
     <div class="input-bar">
       <div class="input-main">
         <textarea id="messageInput" placeholder="메시지 입력"></textarea>
@@ -420,13 +412,21 @@
 당신은 한국 IT 회사의 현실적인 팀장 "정경태"이다.
 
 [말투/성격]
-- 반말이며 직설적이고 짧게 말한다.
+- 반말이며 직설적이고 짧게 말한다. 필요하면 한두 문장 정도만 쓴다.
 - 예의·업무 매너·책임감 부족을 매우 민감하게 본다.
 - 맞춤법/띄어쓰기는 거슬리는 수준이 아니면 넘어간다.
 - 단어 뜻·상황 이해 부족이 보이면 날카롭게 짚어낸다.
 - 화를 내지만 인신공격·욕설은 절대 하지 않는다.
 - 문학적·교훈적 말투는 절대 사용하지 않는다.
-- 1분 이내에 회신이 없으면 1분단위로 대답안하냐? 라며 재촉을 합니다.
+- 가끔 "일단 알겠고", "그래서?" 같은 현실적인 추임새를 섞어 쓴다.
+
+[조직/맥락 이해]
+- 사용자가 언급하는 팀/조직/프로젝트명(예: 보안팀, 인프라팀, 신규 프로젝트명 등)은
+  실제 회사 안에 존재하는 것으로 자연스럽게 받아들인다.
+- 처음 듣는 팀이라도 "회사 안 다른 팀"이라고 가정하고,
+  역할을 추론하거나 필요하면 간단히 질문한다.
+  예: "보안팀이면 접근 권한이 그쪽에서 잡는 거지?", "보안팀 쪽이 일정은 어떻게 본대?"
+- "그런 팀은 없다"처럼 현실과 어긋나는 말은 절대 하지 않는다.
 
 [지적 기준]
 다음 항목 중 하나라도 문제가 보이면 짧게 지적한다.
@@ -444,8 +444,12 @@
 - 사용자의 의도나 상황을 더 파악하기 위한 질문을 던진다.
 - 다음 업무 단계로 자연스럽게 연결되는 질문을 한다.
 - 사용자가 알아야 할 ‘맥락상의 확인 포인트’를 짚어주고 질문한다.
+- 새로 언급된 팀/조직/사람(예: 보안팀, 회계팀, 새 담당자)에 대해
+  "그럼 그쪽이 다음 액션을 어떻게 할지"를 함께 고려해서 묻는다.
+- 30초 이상 회신이 없을 경우 "대답 안하냐?"라고 하며 재촉한다.
 
 즉, 지적만 하고 끝내지 말고 항상 대화를 이어가라.
+사용자의 이전 메시지에서 언급된 일정, 팀, 이슈를 계속 기억하고 이어서 말한다.
 
 [금지]
 - 개선안 제공 금지
@@ -522,7 +526,6 @@
       chatBody.scrollTop = chatBody.scrollHeight;
     }
 
-    // === 상사에게 실제 전송 ===
     async function sendToBoss(text) {
       if (!ensureApiKey()) return;
 
@@ -553,7 +556,6 @@
       }
     }
 
-    // === 문장 교정 제안 ===
     async function requestSuggestions(text) {
       if (!text || suggestionLoading) return;
       if (!ensureApiKey()) return;
@@ -615,7 +617,6 @@
           explanation = parsed.explanation || "";
           arr = parsed.suggestions || [];
         } catch (e) {
-          // 포맷이 깨진 경우를 대비한 fallback
           explanation = "";
           arr = [content];
         }
@@ -629,7 +630,6 @@
     }
 
     function showSuggestions(explanation, list) {
-      // 정보성 경고
       if (explanation && explanation.trim()) {
         suggestionInfo.textContent = explanation.trim();
         suggestionInfo.style.display = "block";
@@ -638,7 +638,6 @@
         suggestionInfo.style.display = "none";
       }
 
-      // 후보 문장
       suggestionList.innerHTML = "";
       list.forEach((s) => {
         if (!s) return;
@@ -663,7 +662,6 @@
       suggestionPopup.style.display = "none";
     }
 
-    // 입력 시 1초 후 자동 교정 (디바운스)
     messageInput.addEventListener("input", () => {
       const text = messageInput.value.trim();
 
@@ -687,7 +685,7 @@
       const text = messageInput.value.trim();
       if (!text) return;
       messageInput.value = "";
-      hideSuggestions();      // 전송하면 교정 팝업 무조건 닫기
+      hideSuggestions();
       sendToBoss(text);
     });
 
@@ -698,7 +696,6 @@
       }
     });
 
-    // API 키 모달
     apikeyButton.addEventListener("click", () => {
       const value = apikeyInput.value.trim();
       if (!value) {
@@ -716,10 +713,8 @@
       }
     });
 
-    // 첫 메시지
     appendMessage("boss", "뭐 할 말 있나?");
     apikeyInput.focus();
   </script>
 </body>
 </html>
-
