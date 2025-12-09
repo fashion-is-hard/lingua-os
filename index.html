@@ -181,6 +181,7 @@
       cursor: pointer;
     }
 
+    /* 교정 팝업 */
     .suggestion-popup {
       position: absolute;
       bottom: 120px;
@@ -264,6 +265,7 @@
       align-items: center;
     }
 
+    /* API 키 모달 */
     .apikey-overlay {
       position: fixed;
       inset: 0;
@@ -425,7 +427,7 @@
   실제 회사 안에 존재하는 것으로 자연스럽게 받아들인다.
 - 처음 듣는 팀이라도 "회사 안 다른 팀"이라고 가정하고,
   역할을 추론하거나 필요하면 간단히 질문한다.
-  예: "보안팀이면 접근 권한이 그쪽에서 잡는 거지?", "보안팀 쪽이 일정은 어떻게 본대?"
+  예: "보안팀이면 권한은 그쪽에서 잡는 거지?", "보안팀 쪽 일정은 어떻게 본대?"
 - "그런 팀은 없다"처럼 현실과 어긋나는 말은 절대 하지 않는다.
 
 [지적 기준]
@@ -447,11 +449,8 @@
 - 새로 언급된 팀/조직/사람(예: 보안팀, 회계팀, 새 담당자)에 대해
   "그럼 그쪽이 다음 액션을 어떻게 할지"를 함께 고려해서 묻는다.
 
-즉, 지적만 하고 끝내지 말고 항상 대화를 이어가라.
-사용자의 이전 메시지에서 언급된 일정, 팀, 이슈를 계속 기억하고 이어서 말한다.
-
-[추가 규칙]
-만약 메신저를 보내고 사용자가 30초 이상 회신이 없을 경우 "대답 안하냐?"라고 하며 재촉한다.
+또한, 당신이 메시지를 보낸 뒤 사용자가 30초 동안 아무 대답도 하지 않으면
+"대답 안 하냐?" 한 줄을 보내어 재촉한다. 이 문장에 대해서는 추가 재촉을 반복하지 않는다.
 
 [금지]
 - 개선안 제공 금지
@@ -468,6 +467,12 @@
 
     let suggestionTimer = null;
     let suggestionLoading = false;
+    let suggestionToken = 0; // 교정 응답 토큰 (전송 후 오래된 응답 무시)
+
+    // 상사 재촉 타이머용
+    let bossReminderTimer = null;
+    let lastBossMessageTime = 0;
+    let lastUserMessageTime = 0;
 
     function ensureApiKey() {
       if (!apiKey) {
@@ -487,6 +492,18 @@
       if (h === 0) h = 12;
       else if (h > 12) h -= 12;
       return `${ampm} ${h}:${m}`;
+    }
+
+    function scheduleBossReminder() {
+      if (bossReminderTimer) {
+        clearTimeout(bossReminderTimer);
+      }
+      bossReminderTimer = setTimeout(() => {
+        // 아직 마지막 상사 메시지 이후로 유저가 대답 안 했으면 재촉
+        if (lastUserMessageTime <= lastBossMessageTime) {
+          appendMessage("boss", "대답 안 하냐?");
+        }
+      }, 30000); // 30초
     }
 
     function appendMessage(role, text) {
@@ -526,6 +543,22 @@
 
       chatBody.appendChild(row);
       chatBody.scrollTop = chatBody.scrollHeight;
+
+      const now = Date.now();
+      if (role === "boss") {
+        if (text === "대답 안 하냐?") {
+          // 재촉 메시지에는 추가 타이머 걸지 않는다.
+          return;
+        }
+        lastBossMessageTime = now;
+        scheduleBossReminder();
+      } else if (role === "user") {
+        lastUserMessageTime = now;
+        if (bossReminderTimer) {
+          clearTimeout(bossReminderTimer);
+          bossReminderTimer = null;
+        }
+      }
     }
 
     async function sendToBoss(text) {
@@ -561,7 +594,9 @@
     async function requestSuggestions(text) {
       if (!text || suggestionLoading) return;
       if (!ensureApiKey()) return;
+
       suggestionLoading = true;
+      const myToken = ++suggestionToken; // 이 요청의 토큰
 
       try {
         const res = await fetch(API_URL, {
@@ -609,6 +644,9 @@
         });
 
         const data = await res.json();
+        // 이미 전송 버튼으로 토큰이 무효화된 경우 결과 무시
+        if (myToken !== suggestionToken) return;
+
         let content = data.choices?.[0]?.message?.content?.trim() || "";
 
         let explanation = "";
@@ -627,6 +665,7 @@
       } catch (e) {
         console.error(e);
       } finally {
+        // 토큰 비교로 이미 무시된 경우라도 플래그는 내린다.
         suggestionLoading = false;
       }
     }
@@ -664,6 +703,7 @@
       suggestionPopup.style.display = "none";
     }
 
+    // 입력 시 1초 후 자동 교정
     messageInput.addEventListener("input", () => {
       const text = messageInput.value.trim();
 
@@ -686,8 +726,16 @@
     sendBtn.addEventListener("click", () => {
       const text = messageInput.value.trim();
       if (!text) return;
-      messageInput.value = "";
+
+      // 전송 시 교정 타이머와 토큰 무효화 → 뒤늦게 오는 응답 무시
+      if (suggestionTimer) {
+        clearTimeout(suggestionTimer);
+        suggestionTimer = null;
+      }
+      suggestionToken++; // 이 시점 이전에 요청된 교정 응답은 모두 버려짐
       hideSuggestions();
+
+      messageInput.value = "";
       sendToBoss(text);
     });
 
@@ -698,6 +746,7 @@
       }
     });
 
+    // API 키 모달
     apikeyButton.addEventListener("click", () => {
       const value = apikeyInput.value.trim();
       if (!value) {
@@ -715,10 +764,9 @@
       }
     });
 
+    // 첫 메시지 + 첫 재촉 타이머
     appendMessage("boss", "뭐 할 말 있나?");
     apikeyInput.focus();
   </script>
 </body>
 </html>
-
-
